@@ -26,6 +26,16 @@ const routes = [
                 name: "Home",
                 component: () => import("../views/homeView.vue"),
             },
+            {
+                path: "orcamento",
+                name: "Orcamento",
+                component: () => import("../views/orcamentoView.vue"),
+            },
+            {
+                path: "agendamentos",
+                name: "Agendamentos",
+                component: () => import("../views/agendamentosView.vue"),
+            },
         ],
     },
 ];

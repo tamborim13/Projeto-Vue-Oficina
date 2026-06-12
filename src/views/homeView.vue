@@ -8,7 +8,8 @@ import {
     deleteDoc,
     doc,
     orderBy,
-    query
+    query,
+    updateDoc
 } from "firebase/firestore";
 
 const modalAberto = ref(false);
@@ -46,6 +47,41 @@ const adicionarCarro = async () => {
             criadoEm: new Date()
         });
         modalAdicionarAberto.value = false;
+        await buscarCarros();
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+// No script, adicione a função
+const agendarCarro = async (carro, data) => {
+    if (!data) return;
+    await addDoc(collection(db, "agendamentos"), {
+        carroId: carro.id,
+        nome: carro.nome,
+        marca: carro.marca,
+        placa: carro.placa,
+        problema: carro.problema,
+        data: data,
+        criadoEm: new Date()
+    });
+    alert(`✓ Agendado para ${data}`);
+};
+
+// Atualize a função atualizarStatus para deletar agendamento ao concluir
+const atualizarStatus = async (carro, novoStatus) => {
+    try {
+        await updateDoc(doc(db, "carros", carro.id), { status: novoStatus });
+
+        // Se concluído, remove o agendamento vinculado
+        if (novoStatus === "concluido") {
+            const snapAgend = await getDocs(collection(db, "agendamentos"));
+            const agendamento = snapAgend.docs.find(d => d.data().carroId === carro.id);
+            if (agendamento) {
+                await deleteDoc(doc(db, "agendamentos", agendamento.id));
+            }
+        }
+
         await buscarCarros();
     } catch (e) {
         console.error(e);
@@ -121,6 +157,17 @@ onMounted(buscarCarros);
                             <div class="fipe-value">{{ carro.conserto }}</div>
                         </div>
                     </div>
+                    <div class="card-actions">
+                        <button v-if="carro.status === 'aguardando'" class="btn-andamento"
+                            @click.stop="atualizarStatus(carro, 'em-andamento')">
+                            ▶ Iniciar andamento
+                        </button>
+                        <button v-if="carro.status === 'em-andamento'" class="btn-concluir"
+                            @click.stop="atualizarStatus(carro, 'concluido')">
+                            ✓ Concluído
+                        </button>
+                        <span v-if="carro.status === 'concluido'" class="tag-concluido">✓ Finalizado</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,7 +189,7 @@ onMounted(buscarCarros);
                     <div class="modal-row"><span>Data de entrada</span><strong>{{ carroSelecionado.data }}</strong>
                     </div>
                     <div class="modal-row"><span>Status</span><strong>{{ statusLabel[carroSelecionado.status]
-                    }}</strong></div>
+                            }}</strong></div>
                 </div>
                 <div class="modal-section">
                     <div class="modal-section-title">Valores</div>
@@ -158,6 +205,25 @@ onMounted(buscarCarros);
                     </div>
                 </div>
                 <div class="modal-total"><span>💰 Total a receber</span><strong>{{ carroSelecionado.conserto }}</strong>
+                </div>
+                <div class="modal-section agend-section">
+                    <div class="modal-section-title">Agendar reparo</div>
+
+                    <!-- Bloqueado se em andamento ou concluído -->
+                    <div class="agend-bloqueado" v-if="carroSelecionado.status === 'em-andamento'">
+                        🔒 Não é possível agendar — carro já está em andamento
+                    </div>
+                    <div class="agend-bloqueado concluido" v-else-if="carroSelecionado.status === 'concluido'">
+                        ✓ Reparo concluído
+                    </div>
+
+                    <div class="agend-inline" v-else>
+                        <input type="date" v-model="carroSelecionado.dataAgendamento" class="input-data" />
+                        <button class="btn-agendar"
+                            @click="agendarCarro(carroSelecionado, carroSelecionado.dataAgendamento)">
+                            📅 Agendar
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -477,12 +543,120 @@ onMounted(buscarCarros);
     margin-top: 3px;
 }
 
+.agend-section {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #1e3d5c;
+}
+
+.agend-bloqueado {
+    font-size: .8rem;
+    color: #f09595;
+    background: rgba(162,45,45,.1);
+    border: 1px solid rgba(162,45,45,.25);
+    border-radius: 8px;
+    padding: .65rem .9rem;
+}
+
+.agend-bloqueado.concluido {
+    color: #5dcaa5;
+    background: rgba(23,158,117,.1);
+    border-color: rgba(23,158,117,.25);
+}
+
+.agend-inline {
+    display: flex;
+    gap: .75rem;
+    align-items: center;
+}
+
+.input-data {
+    background: #0b1a2d;
+    border: 1px solid #1e3d5c;
+    border-radius: 8px;
+    padding: .6rem .85rem;
+    font-size: .85rem;
+    color: #d0e8ff;
+    outline: none;
+    font-family: 'Sora', sans-serif;
+    flex: 1;
+}
+
+.input-data:focus {
+    border-color: #378add;
+}
+
+.btn-agendar {
+    padding: .6rem 1rem;
+    background: #185fa5;
+    border: none;
+    border-radius: 8px;
+    color: #e8f4ff;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    white-space: nowrap;
+}
+
+.btn-agendar:hover {
+    background: #1e6fc0;
+}
+
 .btn-close {
     background: none;
     border: none;
     color: #5a8ab0;
     cursor: pointer;
     font-size: 20px;
+}
+
+.card-actions {
+    margin-top: .75rem;
+}
+
+.btn-concluir {
+    width: 100%;
+    padding: .45rem;
+    border: 1px solid rgba(23, 158, 117, .3);
+    background: rgba(23, 158, 117, .1);
+    border-radius: 7px;
+    color: #5dcaa5;
+    font-size: .78rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    transition: background .15s;
+}
+
+.btn-concluir:hover {
+    background: rgba(23, 158, 117, .2);
+}
+
+.tag-concluido {
+    display: block;
+    text-align: center;
+    font-size: .75rem;
+    color: #5dcaa5;
+    padding: .45rem;
+}
+
+.btn-andamento {
+    width: 100%;
+    padding: .45rem;
+    border: 1px solid rgba(186, 117, 23, .3);
+    background: rgba(186, 117, 23, .1);
+    border-radius: 7px;
+    color: #fac775;
+    font-size: .78rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: 'Sora', sans-serif;
+    transition: background .15s;
+}
+
+.btn-andamento:hover {
+    background: rgba(186, 117, 23, .2);
 }
 
 .modal-section {

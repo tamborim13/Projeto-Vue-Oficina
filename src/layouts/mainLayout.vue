@@ -20,8 +20,8 @@ const logout = async () => {
             </div>
             <nav class="nav">
                 <RouterLink to="/home" class="nav-item">🚗 Carros para arrumar</RouterLink>
-                <RouterLink to="/ordens" class="nav-item">📋 Ordens de serviço</RouterLink>
-                <RouterLink to="/orcamentos" class="nav-item">💰 Orçamentos</RouterLink>
+                <RouterLink to="/orcamento" class="nav-item">💰 Orçamentos</RouterLink>
+                <RouterLink to="/agendamentos" class="nav-item">📅 Agendamentos</RouterLink>
             </nav>
             <div class="sidebar-bottom">
                 <button class="btn-logout" @click="logout">🚪 Sair</button>
